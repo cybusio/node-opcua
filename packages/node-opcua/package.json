@@ -22,7 +22,7 @@
         "node-opcua-basic-types": "2.151.0",
         "node-opcua-binary-stream": "2.139.0",
         "node-opcua-certificate-manager": "2.151.0",
-        "node-opcua-client": "2.152.0",
+        "node-opcua-client": "file:node-opcua-client-2.152.0.tgz",
         "node-opcua-client-proxy": "2.152.0",
         "node-opcua-common": "2.151.0",
         "node-opcua-constants": "2.139.0",
@@ -85,6 +85,7 @@
     "gitHead": "50cfa07779d4c07b299176ac9c27527fcd97d079",
     "files": [
         "dist",
-        "source"
+        "source",
+        "node-opcua-client-2.152.0.tgz"
     ]
 }

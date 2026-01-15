@@ -42,7 +42,8 @@ export class ClientMonitoredItemToolbox {
         assert(typeof done === "function");
 
         // we expect subscription to be valid and have a valid session
-        if (!subscription || !subscription.session) {
+        // @ts-ignore
+        if (!subscription || !subscription?.publishEngine?.session) {
             const err0 = new Error("Invalid subscription");
             if (done) {
                 return done(err0);
