@@ -502,6 +502,55 @@ async function nonReentrant<T>(cache: ICache, prefix: string, dataTypeNodeId: No
 }
 
 
+/**
+ * Some servers (e.g. the Eclipse Milo 1.0.x demo server) encode StructureDefinition.baseDataType
+ * with a namespace index local to the originating nodeset file instead of the index assigned
+ * in the server namespace table, so the advertised baseDataType does not exist in the server
+ * address space (see issue #1520). The inverse HasSubtype reference of the dataType node is
+ * authoritative, so use it to repair the definition. If even that fails, degrade to Structure:
+ * the fields array of a StructureDefinition includes all inherited fields, so the type can
+ * still be decoded correctly without its base type.
+ */
+async function _repairBaseDataType(
+    session: IBasicSessionAsync2,
+    dataTypeNodeId: NodeId,
+    definition: StructureDefinition,
+    cache: ICache
+): Promise<void> {
+    const baseDataType = definition.baseDataType;
+    if (baseDataType.isEmpty() || baseDataType.namespace === 0) {
+        return;
+    }
+    try {
+        await readBrowseNameWithCache(session, baseDataType, cache);
+        return; // the advertised baseDataType exists: nothing to repair
+    } catch (err) {
+        /* advertised baseDataType cannot be found in the server address space */
+    }
+    try {
+        const superType = await findSuperType(session, dataTypeNodeId, cache);
+        warningLog(
+            "dataType",
+            dataTypeNodeId.toString(),
+            ": the advertised baseDataType",
+            baseDataType.toString(),
+            "does not exist on the server; using the superType",
+            superType.toString(),
+            "found by browsing the inverse HasSubtype reference instead"
+        );
+        definition.baseDataType = superType;
+    } catch (err2) {
+        warningLog(
+            "dataType",
+            dataTypeNodeId.toString(),
+            ": the advertised baseDataType",
+            baseDataType.toString(),
+            "does not exist on the server and the superType cannot be found by browsing; falling back to Structure"
+        );
+        definition.baseDataType = resolveNodeId(DataTypeIds.Structure);
+    }
+}
+
 // eslint-disable-next-line max-statements, max-params
 export async function convertDataTypeDefinitionToStructureTypeSchema(
     session: IBasicSessionAsync2,
@@ -519,6 +568,8 @@ export async function convertDataTypeDefinitionToStructureTypeSchema(
 
 
         if (definition instanceof StructureDefinition) {
+
+            await _repairBaseDataType(session, dataTypeNodeId, definition, cache);
 
             const dataTypeFactory = dataTypeManager.getDataTypeFactoryForNamespace(dataTypeNodeId.namespace);
 
